@@ -41,6 +41,15 @@ function App() {
 
   const activeTasks = Object.entries(tasks);
 
+  const cancelDownload = async (taskId: string) => {
+    try {
+      await api.cancelTask(taskId);
+      refreshTasks();
+    } catch (e) {
+      console.error("Failed to cancel task", e);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 p-6 md:p-12 font-sans selection:bg-blue-500/30">
       <div className="w-full max-w-[98%] mx-auto space-y-12">
@@ -52,7 +61,7 @@ function App() {
             <p className="text-slate-400 text-sm">CasaOS Edition</p>
           </div>
           <div className="flex gap-2 text-xs font-mono text-slate-500">
-            <span className="px-2 py-1 bg-slate-800 rounded">v1.0.0</span>
+            <span className="px-2 py-1 bg-slate-800 rounded">v1.1.0</span>
           </div>
         </header>
 
@@ -65,7 +74,7 @@ function App() {
             <h2 className="text-xl font-semibold mb-4 text-slate-300">Local Downloads</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {activeTasks.map(([id, task]) => (
-                <DownloadItem key={id} {...task} />
+                <DownloadItem key={id} id={id} {...task} onCancel={cancelDownload} />
               ))}
             </div>
           </section>

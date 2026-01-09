@@ -141,6 +141,18 @@ async def start_download_task(req: DownloadRequest, background_tasks: Background
     
     return {"status": "success", "task_id": task_id}
 
+@app.post("/api/cancel/{task_id}")
+async def cancel_task(task_id: str):
+    if downloader.cancel_task(task_id):
+        return {"status": "success", "message": "Task cancelled"}
+    
+    # Check if it was already finished or didn't exist
+    if task_id in download_tasks:
+        download_tasks[task_id]["status"] = "Cancelled" # Force status update if it was just a dict entry
+        return {"status": "success", "message": "Task marked as cancelled"}
+        
+    raise HTTPException(status_code=404, detail="Task not found")
+
 @app.get("/api/tasks")
 async def get_tasks():
     return download_tasks

@@ -3,16 +3,16 @@ import aiohttp
 import aiofiles
 import os
 import time
+from typing import Dict, Any
 
-# Global task store
-# Structure: { task_id: { "filename": str, "progress": float, "speed": str, "status": str, "size": int, "downloaded": int } }
-download_tasks = {}
+# Store task info for API
+download_tasks: Dict[str, Dict[str, Any]] = {}
+# Store actual asyncio tasks for cancellation
+active_async_tasks: Dict[str, asyncio.Task] = {}
 
 class Downloader:
-    def __init__(self, download_dir: str = "/downloads"):
+    def __init__(self, download_dir: str):
         self.download_dir = download_dir
-        if not os.path.exists(self.download_dir):
-            os.makedirs(self.download_dir)
 
     async def start_download(self, url: str, filename: str, task_id: str, target_dir: str):
         if not os.path.exists(target_dir):
@@ -24,8 +24,12 @@ class Downloader:
             "speed": "0 KB/s",
             "status": "Downloading",
             "size": 0,
-            "downloaded": 0
+            "downloaded": 0,
+            "error": None
         }
+        
+        # Store reference to current task
+        active_async_tasks[task_id] = asyncio.current_task()
         
         file_path = os.path.join(target_dir, filename)
         
@@ -33,33 +37,46 @@ class Downloader:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:
                     if response.status != 200:
-                        download_tasks[task_id]["status"] = "Error"
-                        return
-
-                    total_size = int(response.headers.get("Content-Length", 0))
+                        raise Exception(f"HTTP {response.status}")
+                        
+                    total_size = int(response.headers.get('content-length', 0))
                     download_tasks[task_id]["size"] = total_size
                     
-                    chunk_size = 1024 * 1024 # 1MB
                     downloaded = 0
                     start_time = time.time()
                     
-                    async with aiofiles.open(file_path, 'wb') as f:
-                        async for chunk in response.content.iter_chunked(chunk_size):
+                    async with aiofiles.open(file_path, mode='wb') as f:
+                        async for chunk in response.content.iter_chunked(1024 * 1024): # 1MB chunks
                             await f.write(chunk)
                             downloaded += len(chunk)
                             
-                            # Update stats
                             elapsed = time.time() - start_time
-                            speed = (downloaded / (elapsed + 0.001)) / 1024 / 1024 # MB/s
+                            speed = downloaded / (elapsed + 0.001) # Avoid div by zero
                             
                             download_tasks[task_id]["downloaded"] = downloaded
-                            download_tasks[task_id]["progress"] = (downloaded / total_size) * 100 if total_size > 0 else 0
-                            download_tasks[task_id]["speed"] = f"{speed:.2f} MB/s"
-                    
-                    download_tasks[task_id]["status"] = "Completed"
-                    download_tasks[task_id]["progress"] = 100
-                    
+                            download_tasks[task_id]["speed"] = f"{speed / 1024 / 1024:.2f} MB/s"
+                            if total_size:
+                                download_tasks[task_id]["progress"] = int((downloaded / total_size) * 100)
+                                
+            download_tasks[task_id]["status"] = "Completed"
+            download_tasks[task_id]["progress"] = 100
+            
+        except asyncio.CancelledError:
+            download_tasks[task_id]["status"] = "Cancelled"
+            download_tasks[task_id]["speed"] = "0 KB/s"
+            # Cleanup partial file
+            if os.path.exists(file_path):
+                os.remove(file_path)
         except Exception as e:
-            print(f"Download error: {e}")
-            download_tasks[task_id]["status"] = f"Error: {str(e)}"
+            download_tasks[task_id]["status"] = "Error"
+            download_tasks[task_id]["error"] = str(e)
+            download_tasks[task_id]["speed"] = "0 KB/s"
+        finally:
+            if task_id in active_async_tasks:
+                del active_async_tasks[task_id]
 
+    def cancel_task(self, task_id: str):
+        if task_id in active_async_tasks:
+            active_async_tasks[task_id].cancel()
+            return True
+        return False

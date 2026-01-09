@@ -34,6 +34,13 @@ export const api = {
     return res.json();
   },
 
+  cancelTask: async (taskId: string): Promise<ApiResponse<any>> => {
+    const res = await fetch(`${API_BASE}/api/cancel/${taskId}`, {
+      method: "POST"
+    });
+    return res.json();
+  },
+
   getTasks: async (): Promise<Record<string, DownloadTask>> => {
     const res = await fetch(`${API_BASE}/api/tasks`);
     return res.json();

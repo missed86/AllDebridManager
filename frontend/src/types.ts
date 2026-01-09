@@ -15,6 +15,7 @@ export interface DownloadTask {
   status: string;
   size: number;
   downloaded: number;
+  error?: string;
 }
 
 export interface ApiResponse<T> {
