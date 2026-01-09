@@ -31,7 +31,8 @@ class Downloader:
         # Store reference to current task
         active_async_tasks[task_id] = asyncio.current_task()
         
-        file_path = os.path.join(target_dir, filename)
+        final_path = os.path.join(target_dir, filename)
+        temp_path = final_path + ".tmp"
         
         try:
             async with aiohttp.ClientSession() as session:
@@ -45,7 +46,7 @@ class Downloader:
                     downloaded = 0
                     start_time = time.time()
                     
-                    async with aiofiles.open(file_path, mode='wb') as f:
+                    async with aiofiles.open(temp_path, mode='wb') as f:
                         async for chunk in response.content.iter_chunked(1024 * 1024): # 1MB chunks
                             await f.write(chunk)
                             downloaded += len(chunk)
@@ -57,6 +58,11 @@ class Downloader:
                             download_tasks[task_id]["speed"] = f"{speed / 1024 / 1024:.2f} MB/s"
                             if total_size:
                                 download_tasks[task_id]["progress"] = int((downloaded / total_size) * 100)
+            
+            # Rename to final filename on success
+            if os.path.exists(final_path):
+                os.remove(final_path) # Overwrite if exists, or maybe we should have checked before? For now overwrite is standard.
+            os.rename(temp_path, final_path)
                                 
             download_tasks[task_id]["status"] = "Completed"
             download_tasks[task_id]["progress"] = 100
@@ -65,8 +71,15 @@ class Downloader:
             download_tasks[task_id]["status"] = "Cancelled"
             download_tasks[task_id]["speed"] = "0 KB/s"
             # Cleanup partial file
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+        except Exception as e:
+            download_tasks[task_id]["status"] = "Error"
+            download_tasks[task_id]["error"] = str(e)
+            download_tasks[task_id]["speed"] = "0 KB/s"
+            # Cleanup partial file on error too? usually yes for clean folders
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
         except Exception as e:
             download_tasks[task_id]["status"] = "Error"
             download_tasks[task_id]["error"] = str(e)
