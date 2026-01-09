@@ -25,6 +25,7 @@ class Downloader:
             "status": "Downloading",
             "size": 0,
             "downloaded": 0,
+            "eta": "--",
             "error": None
         }
         
@@ -35,7 +36,9 @@ class Downloader:
         temp_path = final_path + ".tmp"
         
         try:
-            async with aiohttp.ClientSession() as session:
+            # Disable timeout for long downloads
+            timeout = aiohttp.ClientTimeout(total=None)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(url) as response:
                     if response.status != 200:
                         raise Exception(f"HTTP {response.status}")
@@ -52,7 +55,28 @@ class Downloader:
                             downloaded += len(chunk)
                             
                             elapsed = time.time() - start_time
-                            speed = downloaded / (elapsed + 0.001) # Avoid div by zero
+                            # Avoid div by zero and ensure we have some elapsed time
+                            if elapsed > 0:
+                                bps = downloaded / elapsed
+                                speed = bps
+                                
+                                # ETA Calculation
+                                if total_size > 0 and bps > 0:
+                                    remaining_bytes = total_size - downloaded
+                                    seconds_left = int(remaining_bytes / bps)
+                                    # Format ETA
+                                    m, s = divmod(seconds_left, 60)
+                                    h, m = divmod(m, 60)
+                                    if h > 0:
+                                        eta_str = f"{h}h {m:02d}m"
+                                    else:
+                                        eta_str = f"{m:02d}m {s:02d}s"
+                                    download_tasks[task_id]["eta"] = eta_str
+                                else:
+                                    download_tasks[task_id]["eta"] = "--"
+                            else:
+                                speed = 0
+                                download_tasks[task_id]["eta"] = "Calc..."
                             
                             download_tasks[task_id]["downloaded"] = downloaded
                             download_tasks[task_id]["speed"] = f"{speed / 1024 / 1024:.2f} MB/s"

@@ -5,12 +5,13 @@ interface DownloadItemProps {
   filename: string;
   progress: number;
   speed: string;
+  eta?: string;
   status: string;
   error?: string;
   onCancel: (id: string) => void;
 }
 
-export const DownloadItem: React.FC<DownloadItemProps> = ({ id, filename, progress, speed, status, error, onCancel }) => {
+export const DownloadItem: React.FC<DownloadItemProps> = ({ id, filename, progress, speed, eta, status, error, onCancel }) => {
   const isError = status.includes('Error') || !!error;
   const isDownloading = status === 'Downloading' || status === 'Processing';
 
@@ -30,10 +31,11 @@ export const DownloadItem: React.FC<DownloadItemProps> = ({ id, filename, progre
 
       {!isError ? (
         <>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-400 text-xs">{speed}</span>
+          <div className="flex justify-between items-center text-xs text-slate-400">
+            <span>{speed}</span>
+            {eta && <span>ETA: {eta}</span>}
           </div>
-          <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden mt-1">
             <div
               className="h-full bg-blue-500 transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}

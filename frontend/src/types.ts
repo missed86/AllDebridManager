@@ -12,6 +12,7 @@ export interface DownloadTask {
   filename: string;
   progress: number;
   speed: string;
+  eta?: string;
   status: string;
   size: number;
   downloaded: number;
