@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  alldebrid-manager:
+    build: .
+    image: alldebrid-manager:local
+    container_name: alldebrid-manager
+    restart: unless-stopped
+    ports:
+      - "8085:80"
+    volumes:
+      - ./downloads:/downloads
+    environment:
+      - ALLDEBRID_API_KEY=api_key
+      - DOWNLOAD_PATH_MOVIES=/downloads/movies
+      - DOWNLOAD_PATH_SERIES=/downloads/series
+
+    # CasaOS Metadata
+    x-casaos:
+      architectures:
+        - amd64
+        - arm64
+      main: alldebrid-manager
+      description:
+        en: "AllDebrid Manager: Upload torrents and download files directly to your server."
+      tagline:
+        en: "Manage AllDebrid downloads locally"
+      developer: "Jimmy"
+      author: "Antigravity"
+      icon: "https://github.com/walkxcode/dashboard-icons/blob/main/png/alldebrid.png?raw=true"
+      category: "Downloader"
+      screenshot_link: []
+      title:
+        en: "AllDebrid Manager"
