@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Magnet } from '../types';
 import { api } from '../alldebrid';
+import { Toast } from './Toast';
 
 interface MagnetListProps {
   magnets: Magnet[];
@@ -9,14 +10,38 @@ interface MagnetListProps {
 
 export const MagnetList: React.FC<MagnetListProps> = ({ magnets, onDownloadStart }) => {
   const [renames, setRenames] = useState<Record<string, string>>({});
+  const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
-  const handleDownload = async (link: string, originalName: string, category: "movies" | "series") => {
+  const handleDownload = async (link: string, originalName: string, category: "movies" | "series", id: string) => {
+    if (downloadingIds.has(id)) return;
+
+    setDownloadingIds(prev => new Set(prev).add(id));
     const finalName = renames[link] || originalName;
+
     try {
-      await api.download(link, finalName, category);
-      onDownloadStart();
+      const res = await api.download(link, finalName, category);
+      if (res.status === 'success') {
+        setToast({ msg: `Started downloading: ${finalName}`, type: 'success' });
+        onDownloadStart();
+        // We keep it in downloadingIds so the button triggers "Downloading" state permanently for this session
+        // or until the list refreshes and maybe we want to unblock it? 
+        // Actually, better to keep it blocked to prevent double clicks.
+      } else {
+        setToast({ msg: `Error: ${res.error || 'Unknown error'}`, type: 'error' });
+        setDownloadingIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
     } catch (e) {
-      alert("Failed to start download");
+      setToast({ msg: "Failed to start download", type: 'error' });
+      setDownloadingIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -57,7 +82,9 @@ export const MagnetList: React.FC<MagnetListProps> = ({ magnets, onDownloadStart
   }
 
   return (
-    <div className="overflow-x-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl">
+    <div className="overflow-x-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl relative">
+      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+
       <table className="w-full text-left text-sm text-slate-400">
         <thead className="bg-slate-700/50 text-slate-200 font-medium uppercase text-xs">
           <tr>
@@ -90,7 +117,7 @@ export const MagnetList: React.FC<MagnetListProps> = ({ magnets, onDownloadStart
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`px-2 py-1 rounded-full text-xs border ${row.status === 'Ready' ? 'bg-green-500/10 border-green-500 text-green-400' :
-                  'bg-yellow-500/10 border-yellow-500 text-yellow-400'
+                    'bg-yellow-500/10 border-yellow-500 text-yellow-400'
                   }`}>
                   {row.status}
                 </span>
@@ -98,18 +125,26 @@ export const MagnetList: React.FC<MagnetListProps> = ({ magnets, onDownloadStart
               <td className="px-6 py-4 flex items-center justify-center gap-2">
                 {row.type === 'file' && (
                   <>
-                    <button
-                      onClick={() => handleDownload(row.link!, row.originalName!, 'movies')}
-                      className="px-3 py-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/30 rounded transition text-xs font-semibold"
-                    >
-                      Movies
-                    </button>
-                    <button
-                      onClick={() => handleDownload(row.link!, row.originalName!, 'series')}
-                      className="px-3 py-1.5 bg-purple-600/20 text-purple-400 hover:bg-purple-600 hover:text-white border border-purple-500/30 rounded transition text-xs font-semibold"
-                    >
-                      Series
-                    </button>
+                    {!downloadingIds.has(row.id) ? (
+                      <>
+                        <button
+                          onClick={() => handleDownload(row.link!, row.originalName!, 'movies', row.id)}
+                          className="px-3 py-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white border border-blue-500/30 rounded transition text-xs font-semibold"
+                        >
+                          Movies
+                        </button>
+                        <button
+                          onClick={() => handleDownload(row.link!, row.originalName!, 'series', row.id)}
+                          className="px-3 py-1.5 bg-purple-600/20 text-purple-400 hover:bg-purple-600 hover:text-white border border-purple-500/30 rounded transition text-xs font-semibold"
+                        >
+                          Series
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-xs font-medium text-blue-400 animate-pulse">
+                        Downloading...
+                      </span>
+                    )}
                   </>
                 )}
                 {row.type === 'magnet' && (
