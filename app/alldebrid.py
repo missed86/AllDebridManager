@@ -70,7 +70,9 @@ class AllDebrid:
         Upload torrent file.
         Endpoint: /v4/magnet/upload/file
         """
-        return await self._request("POST", "/v4/magnet/upload/file", data={"files[]": file_content})
+        data = aiohttp.FormData()
+        data.add_field('files[]', file_content, filename='upload.torrent', content_type='application/x-bittorrent')
+        return await self._request("POST", "/v4/magnet/upload/file", data=data)
         
     async def unlock_link(self, link: str) -> Dict:
         """

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { Magnet } from '../types';
 import { api } from '../alldebrid';
 import { Toast } from './Toast';
@@ -45,6 +45,10 @@ export const MagnetList: React.FC<MagnetListProps> = ({ magnets, onDownloadStart
     }
   };
 
+  const handleToastClose = useCallback(() => {
+    setToast(null);
+  }, []);
+
   const handleNameChange = (link: string, newName: string) => {
     setRenames(prev => ({ ...prev, [link]: newName }));
   };
@@ -83,7 +87,7 @@ export const MagnetList: React.FC<MagnetListProps> = ({ magnets, onDownloadStart
 
   return (
     <>
-      {toast && <Toast message={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && <Toast message={toast.msg} type={toast.type} onClose={handleToastClose} />}
       <div className="overflow-x-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl relative">
         <table className="w-full text-left text-sm text-slate-400">
           <thead className="bg-slate-700/50 text-slate-200 font-medium uppercase text-xs">
