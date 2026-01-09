@@ -75,15 +75,11 @@ class Downloader:
                 os.remove(temp_path)
         except Exception as e:
             download_tasks[task_id]["status"] = "Error"
-            download_tasks[task_id]["error"] = str(e)
+            download_tasks[task_id]["error"] = f"{type(e).__name__}: {str(e)}"
             download_tasks[task_id]["speed"] = "0 KB/s"
-            # Cleanup partial file on error too? usually yes for clean folders
+            # Cleanup partial file
             if os.path.exists(temp_path):
                 os.remove(temp_path)
-        except Exception as e:
-            download_tasks[task_id]["status"] = "Error"
-            download_tasks[task_id]["error"] = str(e)
-            download_tasks[task_id]["speed"] = "0 KB/s"
         finally:
             if task_id in active_async_tasks:
                 del active_async_tasks[task_id]

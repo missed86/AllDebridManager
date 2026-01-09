@@ -45,8 +45,8 @@ export const DownloadItem: React.FC<DownloadItemProps> = ({ id, filename, progre
           </div>
         </>
       ) : (
-        <div className="text-red-400 text-xs mt-1">
-          <span className="font-bold">Error:</span> {error || status}
+        <div className="text-red-400 text-xs mt-1 break-words">
+          <span className="font-bold">Error:</span> {error || 'Unknown Error'}
         </div>
       )}
     </div>
